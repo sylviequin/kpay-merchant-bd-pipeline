@@ -1,0 +1,346 @@
+{
+  "project": "KPay Ltd Australia — Merchant BD Pipeline",
+  "dataset": "Case_Study.csv",
+  "report": "Part 1 — Data Cleaning & Quality Assurance",
+  "run_timestamp": "2026-03-19T14:04:57",
+  "generated_by": "NOTEBOOD.ipynb",
+
+  "row_counts": {
+    "total_input":             199999,
+    "after_drop_blank_address": 199945,
+    "after_drop_dup_phone":     199355,
+    "after_au_state_filter":    190684,
+    "final_clean":              190684,
+    "total_removed":              9315,
+    "removal_rate_pct":            4.66
+  },
+
+  "removal_breakdown": {
+    "blank_address_dropped":          54,
+    "duplicate_phone_dropped":        590,
+    "non_au_or_blank_state_removed": 8671,
+    "notes": {
+      "duplicate_phone":  "590 unique phone numbers each appearing on 2 rows — kept first occurrence",
+      "au_state_filter":  "Removes blank states (8,101), invalid/foreign codes (623), and any remaining non-AU values",
+      "blank_address":    "54 rows with no address — uncontactable and suburb-uninferable; dropped"
+    }
+  },
+
+  "cleaning_steps": {
+
+    "step1_phone": {
+      "column": "phone",
+      "total_rows": 199999,
+      "flag_counts": {
+        "ok":             104878,
+        "local_number":    79230,
+        "normalised":       8634,
+        "reconstructed":     381,
+        "foreign_number":   6876,
+        "unresolvable":        0
+      },
+      "issues_fixed": {
+        "scientific_notation_reconstructed": 381,
+        "plus61_normalised_to_local":       79230,
+        "bare_61_normalised":               8634,
+        "total_phone_issues_resolved":      88245
+      },
+      "foreign_flagged_for_exclusion": 6876,
+      "notes": "Scientific notation (6.113E+11) caused by Excel float-parsing the CSV. Reconstructed using lead_key digit extraction. 1300/1800 freecall leading-zero artefact also stripped."
+    },
+
+    "step2_state": {
+      "column": "state",
+      "total_rows": 199999,
+      "flag_counts": {
+        "valid":             190485,
+        "lowercase":             556,
+        "address_inferred":      234,
+        "invalid":               623,
+        "blank_unresolved":     8101,
+        "unknown":                 0
+      },
+      "valid_au_codes": ["NSW", "VIC", "QLD", "WA", "SA", "ACT", "TAS", "NT"],
+      "longform_normalised": 556,
+      "inferred_from_address": 234,
+      "invalid_non_au_codes": 623,
+      "blank_unresolved_retained": 8101,
+      "notes": "Invalid codes include US states (NY, CA, FL etc.) and internal system tags (APAC, AMM, ATM, HOP etc.). Blank states attempted inference via regex on address + suburb text."
+    },
+
+    "step3_suburb": {
+      "column": "suburb",
+      "total_rows": 199999,
+      "flag_counts": {
+        "ok":               53596,
+        "cased":            41392,
+        "extracted":        75711,
+        "blank_unresolved": 29300
+      },
+      "blank_before":   105011,
+      "blank_after":     29300,
+      "recovered_from_address": 75711,
+      "title_case_applied":     41392,
+      "extraction_patterns": 7,
+      "notes": "7 ordered regex patterns applied to address field. Patterns cover: ',Suburb STATE', ',Suburb,LongForm State', ',Suburb,STATE digit', 'Suburb STATE POSTCODE', 'Suburb,POSTCODE,STATE', 'Suburb,STATE,POSTCODE', last-word-group before state abbreviation (road-word filtered)."
+    },
+
+    "step4_address": {
+      "column": "address",
+      "total_rows": 199999,
+      "flag_counts": {
+        "ok":    193908,
+        "fixed":   6037,
+        "blank":     54
+      },
+      "duplicated_words_fixed": 6037,
+      "blank_count": 54,
+      "examples_fixed": ["Sydney Sydney NSW 2000", "NSW NSW", "North North Sydney NSW 2060"],
+      "notes": "Regex deduplication: \\b(\\w{4,})\\s+\\1\\b and \\b(STATE)\\s+\\1\\b. Blank address rows retained here, dropped in manipulation phase."
+    },
+
+    "step5_business_name": {
+      "column": "business_name",
+      "total_rows": 199999,
+      "blanks_before": 9,
+      "blanks_after": 0,
+      "manually_recovered": 9,
+      "pipe_suffix_cleaned": 1204,
+      "junk_excluded": 7,
+      "manual_recovery_map": {
+        "Shop 4 207-215 Edensor Road Edensor Park, Greenfield Park, New South Wales 2176 Australia": "Domino's Pizza Edensor Park",
+        "Hemlock St,, Marsden Park Marsden Park, New South Wales 2765": "Hemlock Mall",
+        "41/47 Shepherds Dr, Cherrybrook, Hornsby, New South Wales 2126 Australia": "Parking Car Lot",
+        "80 Mitchell Rd, Cronulla, New South Wales 2230 Australia": "Bianchini's Eloura Beach",
+        "Shop 449, Level 4 Macquarie Centre, Macquarie Park, Ryde, New South Wales 2112 Australia": "JB Hi-Fi Macquarie",
+        "220 Annerley Road, Brisbane, Queensland 4102 Australia": "Construction Building",
+        "Factory 8/3 Apollo St, Warriewood NSW 2102, Australia": "Warriewood Automotive Service PTY LTD",
+        "30/74 Mileham St, South Windsor NSW 2756, Australia": "Greater West Exercise Physiology",
+        "Hervey Range Rd, Cessnock, New South Wales 4817 Australia": "Mr O Wholefoods"
+      },
+      "notes": "9 blank names recovered via address-to-name dict. Pipe-route suffixes stripped (e.g. 'Name | Sydney to Auckland'). Junk patterns: support hotlines, bare phone numbers as names, known non-merchants."
+    },
+
+    "step6_sector_level_1": {
+      "column": "sector_level_1",
+      "total_rows": 199999,
+      "flag_counts": {
+        "ok":        153350,
+        "was_blank":  37770,
+        "merged":      8879
+      },
+      "unique_values_before": 147,
+      "unique_values_after": 9,
+      "blank_relabelled_uncategorised": 37770,
+      "canonical_taxonomy_map": {
+        "F&B":                  ["Food & Drink", "Restaurants", "Restaurant", "Restaurants & Bistros", "Food & Beverage", "Food & Beverages", "Food and Beverage", "Food and Beverages", "Food and Beverage Retail", "Food Retailers", "Foods", "Food", "Food & Dining", "Food and Dining", "Food and Drink", "Food Services", "Food Service", "Food &/or General Stores", "Cafes", "Coffee", "Grocery & Food", "Grocery Stores", "Groceries", "Grocery", "Food & Beverage Retailing", "Seafood", "Fruit & Vegetables", "Desserts & Sweets", "Beverage", "Ice Cream", "Snack Foods", "catering", "Eating and Drinking"],
+        "Retail":               ["Retail Shopping", "Stores", "Retail Store", "Retail Stores", "Retail Trade", "Retailers", "Shopping", "Shops & Stores", "Clothing", "Fashion", "Fashion & Accessories", "Furniture", "Electronics", "Technology", "Computers", "Stationery", "Books", "Toys", "Games", "Sporting Goods", "Bicycles", "Markets", "Printers"],
+        "Beauty & Wellness":    ["Hair & Beauty", "Beauty Salons", "Beauty & Personal Care", "Health & Beauty", "Health and Beauty", "Beauty & Spa", "Beauty", "Hairdressers", "Hair Salons", "Massage", "Tattooist", "Body Piercing", "Physiotherapy", "Pharmacy"],
+        "Professional Services":["Professional Service", "Repair Services", "Laundries,Services", "Laundry & Dry Cleaning"],
+        "Automotive":           ["Automotive Parts", "Automotive Parts & Accessories", "Automotive Repair", "Car Accessories", "Tyres", "Gas Station", "Vehicle Rental"],
+        "Others":               "retained as-is",
+        "Uncategorised":        "blank sector_level_1 rows",
+        "Nightlife":            "retained as-is",
+        "Florists":             "retained as-is"
+      },
+      "final_distribution": {
+        "Others":                78854,
+        "Uncategorised":         37764,
+        "Retail":                27551,
+        "F&B":                   18395,
+        "Professional Services": 16706,
+        "Beauty & Wellness":     10781,
+        "Automotive":              163,
+        "Nightlife":                 6,
+        "Florists":                  4
+      }
+    },
+
+    "step7_sector_level_2": {
+      "column": "sector_level_2",
+      "total_rows": 199999,
+      "blank_filled_as_other": 37770,
+      "method": "fillna('Other')",
+      "unique_values": 1555,
+      "top_values": {
+        "Others":                       128775,
+        "Dine-in Restaurant":            11148,
+        "Automotive Services":            9885,
+        "Home & Furniture":               5794,
+        "Electronics & Appliances":       3638,
+        "Fashion & Accessories":          3357,
+        "IT / Design / Creative Agency":  3283,
+        "Beauty Salon / Barber":          3083,
+        "Government / Utility Services":  2755,
+        "Quick-Service / Takeaway":       2622,
+        "Cafe & Dessert":                 2019,
+        "Finance & Legal":                1662,
+        "Bar / Pub / Nightlife":          1514,
+        "Gym / Fitness / Yoga":           1163,
+        "Grocery / Convenience Store":    1105,
+        "Hotel / Motel / Accommodation":   918,
+        "Health & Beauty Retail":          826,
+        "Spa & Massage":                   796,
+        "Real Estate & Property":          652,
+        "Medical & Dental":                608
+      },
+      "out_of_scope_flagged": {
+        "Religious / Community / NGO":    "excluded",
+        "Government / Utility Services":  "excluded"
+      },
+      "notes": "Blank L2 filled with 'Other' via fillna. Out-of-scope L2 categories (NGO, Government) flagged for exclusion in manipulation phase."
+    },
+
+    "step8_sector_level_3": {
+      "column": "sector_level_3",
+      "action": "Merge map (_S3_MAP) applied for duplicate labels",
+      "merged_labels": [
+        "Quick-Service / Takeaway", "Medical & Dental", "Physiotherapy & Allied Health",
+        "Spa & Massage", "Bar / Pub / Nightlife", "Beauty Salon / Barber", "Nail Salon",
+        "Grocery / Convenience Store", "Cafe & Dessert", "Gym / Fitness / Yoga",
+        "Fashion & Accessories", "Bottle Shop / Liquor", "Hotel / Motel / Accommodation",
+        "Automotive Services"
+      ],
+      "notes": "L3 used as supporting context for keyword triage of Others/Uncategorised in L1. Records with L1=Others AND L2=Others flagged for downstream ML re-classification."
+    }
+  },
+
+  "manipulation_phase": {
+    "input_rows": 199999,
+    "step_1_drop_blank_address": {
+      "rows_dropped": 54,
+      "rows_remaining": 199945,
+      "rationale": "Address-less merchants are uncontactable and suburb cannot be inferred"
+    },
+    "step_2_drop_duplicate_phone": {
+      "duplicate_phone_groups": 590,
+      "rows_dropped": 590,
+      "rows_remaining": 199355,
+      "method": "drop_duplicates(subset='phone', keep='first')",
+      "rationale": "Same phone across different business names = data noise or shared switchboard"
+    },
+    "step_3_au_state_filter": {
+      "valid_au_states": ["NSW", "VIC", "QLD", "WA", "SA", "ACT", "TAS", "NT"],
+      "rows_dropped": 8671,
+      "rows_remaining": 190684,
+      "dropped_includes": {
+        "blank_state_unresolved": 8101,
+        "invalid_foreign_codes":   570
+      },
+      "non_au_confirmed_via": "blank_view[['street','country']] extraction — confirmed Canada, New Zealand, and other non-AU addresses in blank-state rows"
+    },
+    "final_clean_rows": 190684
+  },
+
+  "data_quality_classification": {
+    "syntactic_issues": [
+      "phone: scientific notation format",
+      "phone: mixed formats (+61, 04xx, bracket, bare 61)",
+      "state: long-form names instead of 2-letter codes",
+      "suburb: all-lowercase casing",
+      "address: duplicated words (Sydney Sydney, NSW NSW)",
+      "sector_level_1: 147 fragmented labels for 9 logical categories"
+    ],
+    "semantic_issues": [
+      "state: US/invalid codes formatted correctly but wrong geography",
+      "state: blank does not mean no state — scraper failure",
+      "phone: duplicate phone implies ambiguous merchant-to-phone mapping",
+      "business_name: pipe-suffix misrepresents business identity",
+      "sector_level_1: blank does not mean uncategorised — unknown category"
+    ],
+    "pragmatic_issues": [
+      "phone: foreign numbers valid but outside AU BD scope",
+      "suburb: 105k blanks reduce geographic routing utility (address extraction partially fixes)",
+      "address: 54 blanks make records uncontactable",
+      "business_name: 9 blanks make records unpitchable",
+      "business_name: junk listings (hotlines, charities) waste rep time",
+      "sector_level_2: 45.5% Others provides no BD segmentation signal"
+    ]
+  },
+
+  "final_dataset_profile": {
+    "total_rows": 190684,
+    "columns": 12,
+    "states": {
+      "NSW": 112621,
+      "VIC":  32965,
+      "QLD":  21395,
+      "WA":    9359,
+      "SA":    7651,
+      "ACT":   2013,
+      "TAS":   1633,
+      "NT":      487
+    },
+    "sector_level_1": {
+      "Others":                78854,
+      "Uncategorised":         37764,
+      "Retail":                27551,
+      "F&B":                   18395,
+      "Professional Services": 16706,
+      "Beauty & Wellness":     10781,
+      "Automotive":              163,
+      "Nightlife":                 6,
+      "Florists":                  4
+    },
+    "top_suburbs": {
+      "Sydney":        505,
+      "Surry Hills":    55,
+      "Parramatta":     50,
+      "Liverpool":      39,
+      "Chatswood":      39,
+      "Alexandria":     33,
+      "Darlinghurst":   28,
+      "Marrickville":   27,
+      "Castle Hill":    27,
+      "Seven Hills":    26
+    },
+    "data_completeness": {
+      "blank_suburb_remaining":  29300,
+      "blank_state_remaining":       0,
+      "blank_address_remaining":     0,
+      "blank_business_name":         0,
+      "zero_scientific_notation_phones": true,
+      "zero_duplicate_phones": true,
+      "zero_non_au_states": true
+    }
+  },
+
+  "enrichment_proposals": [
+    {
+      "field": "sector_payment_demand_score",
+      "source": "lookup table (internal)",
+      "action": "Score each Sector L1 on 1-5 digital payment demand scale",
+      "status": "pending",
+      "cost": "zero API cost"
+    },
+    {
+      "field": "google_review_count + avg_rating",
+      "source": "Google Places API",
+      "action": "Batch re-query using business_name + address as key",
+      "status": "pending",
+      "priority": "high"
+    },
+    {
+      "field": "detected_pos_provider",
+      "source": "Business website footer badge scraper",
+      "action": "Detect Square / Stripe / Tyro / Afterpay logos",
+      "status": "pending",
+      "priority": "high"
+    },
+    {
+      "field": "abn_status",
+      "source": "Australian Business Register API",
+      "action": "Match on business name, confirm EntityStatus = Active",
+      "status": "pending",
+      "priority": "medium"
+    }
+  ],
+
+  "deliverables": {
+    "notebook":           "NOTEBOOD.ipynb",
+    "clean_csv":          "kpay_merchants_cleaned.csv",
+    "qa_report_pdf":      "kpay_part1_qa_report.pdf",
+    "qa_summary_json":    "kpay_part1_qa_summary.json",
+    "checklist":          "KPay_BD_Checklist_v4.md"
+  }
+}
